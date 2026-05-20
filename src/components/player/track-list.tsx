@@ -5,10 +5,17 @@ import { usePlayer } from "@/context/player-context";
 import type { SpotifyTrack } from "@/lib/spotify";
 import { Button } from "@/components/ui/button";
 
-export function TrackList({ tracks }: { tracks: SpotifyTrack[] }) {
+export function TrackList({
+  tracks,
+  showEmpty = true,
+}: {
+  tracks: SpotifyTrack[];
+  showEmpty?: boolean;
+}) {
   const { setNowPlaying } = usePlayer();
 
   if (tracks.length === 0) {
+    if (!showEmpty) return null;
     return (
       <p className="py-8 text-center text-sm text-whale-muted">
         Nenhuma faixa encontrada

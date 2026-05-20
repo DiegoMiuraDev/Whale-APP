@@ -2,7 +2,7 @@ import { identifyAudio, type IdentifiedTrack } from "@/lib/audd";
 import { searchByLyricsOnSpotify } from "@/lib/lyrics-search";
 import {
   createPlaylist,
-  searchTracks,
+  searchTracksWithFallback,
   searchTracksPublic,
   type SpotifyTrack,
 } from "@/lib/spotify";
@@ -67,7 +67,7 @@ export async function runSearchCatalog(
   userId?: string,
 ): Promise<ToolResult> {
   const tracks = userId
-    ? await searchTracks(userId, query)
+    ? (await searchTracksWithFallback(userId, query)).tracks
     : await searchTracksPublic(query);
   return { tool: "search_catalog", data: tracks };
 }
@@ -82,7 +82,7 @@ export async function runCreatePlaylist(
   const seen = new Set<string>();
 
   for (const q of trackQueries.slice(0, 20)) {
-    const tracks = await searchTracks(userId, q, 3);
+    const { tracks } = await searchTracksWithFallback(userId, q, 3);
     for (const track of tracks) {
       if (!seen.has(track.uri)) {
         seen.add(track.uri);

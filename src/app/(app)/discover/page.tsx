@@ -11,16 +11,38 @@ export default function DiscoverPage() {
   const [query, setQuery] = useState("");
   const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
 
   const search = async () => {
     if (!query.trim()) return;
     setLoading(true);
+    setError(null);
+    setSearched(true);
     try {
       const res = await fetch(
-        `/api/search?${new URLSearchParams({ q: query })}`,
+        `/api/search?${new URLSearchParams({ q: query.trim() })}`,
       );
-      const data = await res.json();
+      const data = (await res.json()) as {
+        tracks?: SpotifyTrack[];
+        error?: string;
+      };
+
+      if (!res.ok) {
+        setTracks([]);
+        setError(data.error ?? "Erro ao buscar. Tente de novo.");
+        return;
+      }
+
       setTracks(data.tracks ?? []);
+      if (data.error && (data.tracks?.length ?? 0) === 0) {
+        setError(data.error);
+      } else if (data.error) {
+        setError(null);
+      }
+    } catch {
+      setTracks([]);
+      setError("Erro de rede. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
@@ -41,13 +63,24 @@ export default function DiscoverPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && search()}
+          disabled={loading}
         />
-        <Button onClick={search} disabled={loading}>
+        <Button onClick={search} disabled={loading || !query.trim()}>
           <Search className="h-4 w-4" />
         </Button>
       </div>
 
-      <TrackList tracks={tracks} />
+      {error && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="py-8 text-center text-sm text-whale-muted">Buscando…</p>
+      ) : (
+        <TrackList tracks={tracks} showEmpty={searched} />
+      )}
     </div>
   );
 }

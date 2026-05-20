@@ -24,14 +24,17 @@ async function getSpotifyAccessToken(userId: string): Promise<string | null> {
   const creds = await getSpotifyCredentials(userId);
   if (!creds) return null;
 
-  const expiresAt = creds.expiresAt ?? 0;
   const now = Math.floor(Date.now() / 1000);
+  const expiresAt = creds.expiresAt;
 
-  if (expiresAt > now + 60) {
+  if (!expiresAt || expiresAt > now + 60) {
     return creds.accessToken;
   }
 
-  if (!creds.refreshToken) return creds.accessToken;
+  if (!creds.refreshToken) {
+    console.warn("[spotify] token expirado sem refresh_token");
+    return creds.accessToken;
+  }
 
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -114,20 +117,77 @@ async function spotifyFetch<T>(
   return { data: JSON.parse(text) as T };
 }
 
+function parseSearchItems(
+  data: { tracks?: { items: (SpotifyTrack | null)[] } } | null,
+): SpotifyTrack[] {
+  return (data?.tracks?.items ?? []).filter(
+    (t): t is SpotifyTrack => t != null && Boolean(t.id && t.name),
+  );
+}
+
+export type SearchTracksResult = {
+  tracks: SpotifyTrack[];
+  error?: string;
+  source: "user" | "public";
+};
+
 export async function searchTracks(
   userId: string,
   query: string,
   limit = 10,
-): Promise<SpotifyTrack[]> {
-  const { data } = await spotifyFetch<{ tracks: { items: SpotifyTrack[] } }>(
-    userId,
-    `/search?${new URLSearchParams({
-      q: query,
-      type: "track",
-      limit: String(limit),
-    })}`,
-  );
-  return data?.tracks?.items ?? [];
+  market = "BR",
+): Promise<SearchTracksResult> {
+  const params = new URLSearchParams({
+    q: query,
+    type: "track",
+    limit: String(limit),
+    market,
+  });
+
+  const { data, error } = await spotifyFetch<{
+    tracks: { items: (SpotifyTrack | null)[] };
+  }>(userId, `/search?${params}`);
+
+  const tracks = parseSearchItems(data);
+
+  if (tracks.length > 0) {
+    return { tracks, source: "user" };
+  }
+
+  if (error) {
+    return {
+      tracks: [],
+      error:
+        error.status === 401
+          ? "Sessão Spotify expirada. Saia e entre de novo."
+          : `Spotify retornou erro ${error.status}`,
+      source: "user",
+    };
+  }
+
+  return { tracks: [], source: "user" };
+}
+
+export async function searchTracksWithFallback(
+  userId: string,
+  query: string,
+  limit = 10,
+): Promise<SearchTracksResult> {
+  const userResult = await searchTracks(userId, query, limit);
+  if (userResult.tracks.length > 0) return userResult;
+
+  const publicTracks = await searchTracksPublic(query, limit);
+  if (publicTracks.length > 0) {
+    return { tracks: publicTracks, source: "public" };
+  }
+
+  return {
+    tracks: [],
+    error:
+      userResult.error ??
+      "Nenhuma faixa encontrada. Tente outro termo ou reconecte o Spotify.",
+    source: "user",
+  };
 }
 
 export async function searchTracksPublic(
@@ -157,13 +217,19 @@ export async function searchTracksPublic(
       q: query,
       type: "track",
       limit: String(limit),
+      market: "BR",
     })}`,
     { headers: { Authorization: `Bearer ${access_token}` } },
   );
 
-  if (!res.ok) return [];
-  const data = (await res.json()) as { tracks: { items: SpotifyTrack[] } };
-  return data.tracks?.items ?? [];
+  if (!res.ok) {
+    console.error("[spotify] public search", res.status, await res.text());
+    return [];
+  }
+  const data = (await res.json()) as {
+    tracks: { items: (SpotifyTrack | null)[] };
+  };
+  return parseSearchItems(data);
 }
 
 export async function createPlaylist(

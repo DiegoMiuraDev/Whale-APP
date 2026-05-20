@@ -1,4 +1,8 @@
-import { searchTracks, searchTracksPublic, type SpotifyTrack } from "@/lib/spotify";
+import {
+  searchTracksPublic,
+  searchTracksWithFallback,
+  type SpotifyTrack,
+} from "@/lib/spotify";
 
 export async function searchByLyricsOnSpotify(
   lyrics: string,
@@ -9,6 +13,6 @@ export async function searchByLyricsOnSpotify(
   if (query.length < 2) return [];
 
   return userId
-    ? await searchTracks(userId, query, limit)
+    ? (await searchTracksWithFallback(userId, query, limit)).tracks
     : await searchTracksPublic(query, limit);
 }

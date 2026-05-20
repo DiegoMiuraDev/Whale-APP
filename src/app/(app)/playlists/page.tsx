@@ -74,7 +74,7 @@ export default function PlaylistsPage() {
                 <Link href="/discover" className="text-whale-accent underline">
                   Descobrir
                 </Link>{" "}
-                para buscar faixas e salve em sessionStorage, ou peça ao{" "}
+                para buscar faixas ou peça ao{" "}
                 <Link href="/agent" className="text-whale-accent underline">
                   Agente
                 </Link>

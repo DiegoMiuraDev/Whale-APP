@@ -20,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} h-full`}>
-      <body className="min-h-full antialiased">
+    <html lang="pt-BR" className={`${geistSans.variable} h-full`} suppressHydrationWarning>
+      <body className="min-h-full antialiased" suppressHydrationWarning>
         <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>

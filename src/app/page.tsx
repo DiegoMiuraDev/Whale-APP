@@ -109,8 +109,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-whale-border py-8 text-center text-sm text-whale-muted">
-        Whale © {new Date().getFullYear()} — UI inspirada em players modernos;
-        marca e catálogo próprios.
+        Whale 2026 - Diego MIura Fogacio
       </footer>
     </div>
   );

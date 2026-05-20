@@ -93,7 +93,7 @@ Abra o app pela URL **https** do ngrok, não pelo localhost.
 
 1. Configure env vars no painel Vercel
 2. Use Postgres (`DATABASE_URL`) e rode `prisma migrate deploy`
-3. `vercel.json` agenda cron horário para expirar playlists
+3. `vercel.json` agenda cron diário (03:00 UTC) para expirar playlists
 
 ## Legal
 

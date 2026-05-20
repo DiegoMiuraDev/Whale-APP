@@ -54,7 +54,8 @@ https://whale-app.vercel.app/api/auth/callback/spotify
 
 ## 4. Cron de playlists
 
-O `vercel.json` já agenda `/api/cron/expire-playlists` a cada hora.  
+O `vercel.json` agenda `/api/cron/expire-playlists` **1x por dia** (03:00 UTC) — limite do plano **Hobby** da Vercel (cron mais frequente que diário exige Pro).
+
 Defina `CRON_SECRET` no painel da Vercel — ela envia `Authorization: Bearer <CRON_SECRET>` automaticamente.
 
 ## 5. Deploy via CLI (opcional)

@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getSpotifyCredentials } from "@/lib/spotify-auth";
 
 const SPOTIFY_API = "https://api.spotify.com/v1";
+const SPOTIFY_SEARCH_MAX_LIMIT = 10;
+
+function clampSearchLimit(limit: number): number {
+  return Math.min(Math.max(1, limit), SPOTIFY_SEARCH_MAX_LIMIT);
+}
 
 export type SpotifyTrack = {
   id: string;
@@ -140,7 +145,7 @@ export async function searchTracks(
   const params = new URLSearchParams({
     q: query,
     type: "track",
-    limit: String(limit),
+    limit: String(clampSearchLimit(limit)),
     market,
   });
 
@@ -198,6 +203,8 @@ export async function searchTracksPublic(
     return [];
   }
 
+  const safeLimit = clampSearchLimit(limit);
+
   const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
@@ -216,7 +223,7 @@ export async function searchTracksPublic(
     `${SPOTIFY_API}/search?${new URLSearchParams({
       q: query,
       type: "track",
-      limit: String(limit),
+      limit: String(safeLimit),
       market: "BR",
     })}`,
     { headers: { Authorization: `Bearer ${access_token}` } },

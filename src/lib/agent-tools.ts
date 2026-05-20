@@ -7,6 +7,7 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 import { prisma } from "@/lib/prisma";
+import { asStringArray, pickArg, pickNumber } from "@/lib/tool-args";
 
 export type ToolResult =
   | { tool: "identify_audio"; data: IdentifiedTrack | null }
@@ -14,7 +15,8 @@ export type ToolResult =
   | { tool: "search_catalog"; data: SpotifyTrack[] }
   | {
       tool: "create_playlist";
-      data: { id: string; url: string; expiresAt?: string } | null;
+      data: { id: string; url: string; expiresAt?: string; tracksAdded: number } | null;
+      error?: string;
     };
 
 export async function runIdentifyAudio(
@@ -77,39 +79,56 @@ export async function runCreatePlaylist(
   temporaryHours?: number,
 ): Promise<ToolResult> {
   const uris: string[] = [];
+  const seen = new Set<string>();
 
   for (const q of trackQueries.slice(0, 20)) {
-    const tracks = await searchTracks(userId, q, 1);
-    if (tracks[0]) uris.push(tracks[0].uri);
+    const tracks = await searchTracks(userId, q, 3);
+    for (const track of tracks) {
+      if (!seen.has(track.uri)) {
+        seen.add(track.uri);
+        uris.push(track.uri);
+      }
+      if (uris.length >= 20) break;
+    }
+    if (uris.length >= 20) break;
   }
 
-  const description = temporaryHours
-    ? `Playlist temporária Whale — expira em ${temporaryHours}h`
-    : "Criada pelo agente Whale";
-
-  const playlist = await createPlaylist(userId, name, description, uris);
-  if (!playlist) return { tool: "create_playlist", data: null };
-
-  let expiresAt: Date | undefined;
-  if (temporaryHours) {
-    expiresAt = new Date(Date.now() + temporaryHours * 60 * 60 * 1000);
-    await prisma.tempPlaylist.create({
-      data: {
-        userId,
-        spotifyPlaylistId: playlist.id,
-        name,
-        expiresAt,
-        createdByAgent: true,
-      },
-    });
+  if (uris.length === 0) {
+    return {
+      tool: "create_playlist",
+      data: null,
+      error: `Não encontrei faixas no Spotify para: ${trackQueries.slice(0, 3).join(", ")}`,
+    };
   }
+
+  const hours = temporaryHours && temporaryHours > 0 ? temporaryHours : 24;
+  const description = `Playlist temporária Whale — expira em ${hours}h`;
+
+  const result = await createPlaylist(userId, name, description, uris);
+
+  if ("error" in result) {
+    return { tool: "create_playlist", data: null, error: result.error };
+  }
+
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+
+  await prisma.tempPlaylist.create({
+    data: {
+      userId,
+      spotifyPlaylistId: result.id,
+      name,
+      expiresAt,
+      createdByAgent: true,
+    },
+  });
 
   return {
     tool: "create_playlist",
     data: {
-      id: playlist.id,
-      url: playlist.external_urls.spotify,
-      expiresAt: expiresAt?.toISOString(),
+      id: result.id,
+      url: result.external_urls.spotify,
+      expiresAt: expiresAt.toISOString(),
+      tracksAdded: result.tracksAdded,
     },
   };
 }
@@ -121,18 +140,46 @@ export async function executeAgentTool(
 ): Promise<ToolResult> {
   switch (name) {
     case "search_catalog":
-      return runSearchCatalog(String(args.query), userId);
+      return runSearchCatalog(
+        String(pickArg(args, "query", "q") ?? ""),
+        userId,
+      );
     case "search_lyrics":
-      return runSearchLyrics(String(args.text), userId);
-    case "create_playlist":
+      return runSearchLyrics(
+        String(pickArg(args, "text", "lyrics", "query") ?? ""),
+        userId,
+      );
+    case "create_playlist": {
       if (!userId) throw new Error("Login necessário para criar playlist");
+      const trackQueries = asStringArray(
+        pickArg(args, "track_queries", "trackQueries", "tracks", "songs"),
+      );
       return runCreatePlaylist(
         userId,
-        String(args.name),
-        (args.track_queries as string[]) ?? [],
-        args.temporary_hours as number | undefined,
+        String(pickArg(args, "name", "playlist_name", "title") ?? "Whale"),
+        trackQueries,
+        pickNumber(args, "temporary_hours", "temporaryHours", "hours"),
       );
+    }
     default:
       throw new Error(`Tool desconhecida: ${name}`);
   }
+}
+
+export function formatCreatePlaylistFeedback(
+  toolResults: unknown[],
+): string | null {
+  for (const raw of toolResults) {
+    if (!raw || typeof raw !== "object") continue;
+    const tr = raw as ToolResult;
+    if (tr.tool !== "create_playlist") continue;
+
+    if (tr.data?.url) {
+      return `\n\n✅ Playlist criada no Spotify (${tr.data.tracksAdded} faixa(s)): ${tr.data.url}\nTambém aparece em **Playlists** no Whale.`;
+    }
+    if (tr.error) {
+      return `\n\n⚠️ Não foi possível criar a playlist: ${tr.error}`;
+    }
+  }
+  return null;
 }

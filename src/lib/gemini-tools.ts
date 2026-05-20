@@ -38,7 +38,8 @@ export const GEMINI_FUNCTION_DECLARATIONS: FunctionDeclaration[] = [
         track_queries: {
           type: SchemaType.ARRAY,
           items: { type: SchemaType.STRING },
-          description: "Lista de buscas para montar a playlist",
+          description:
+            "Lista de buscas no Spotify (ex: nome da música, artista, ou 'artista - música'). Obrigatório ter pelo menos uma faixa.",
         },
         temporary_hours: {
           type: SchemaType.NUMBER,

@@ -14,6 +14,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.spotifyAccessToken = account.access_token;
         token.spotifyRefreshToken = account.refresh_token;
         token.spotifyExpiresAt = account.expires_at;
+
+        if (user.id && account.access_token) {
+          await prisma.account.updateMany({
+            where: { userId: user.id, provider: "spotify" },
+            data: {
+              access_token: account.access_token,
+              refresh_token: account.refresh_token,
+              expires_at: account.expires_at,
+            },
+          });
+        }
       }
       return token;
     },

@@ -38,24 +38,21 @@ export async function POST(req: NextRequest) {
   const { name, trackUris, hours } = parsed.data;
   const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
-  const playlist = await createPlaylist(
+  const result = await createPlaylist(
     session.user.id,
     name,
     `Whale temporária — expira em ${hours}h`,
     trackUris,
   );
 
-  if (!playlist) {
-    return NextResponse.json(
-      { error: "Falha ao criar playlist no Spotify" },
-      { status: 500 },
-    );
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
 
   const temp = await prisma.tempPlaylist.create({
     data: {
       userId: session.user.id,
-      spotifyPlaylistId: playlist.id,
+      spotifyPlaylistId: result.id,
       name,
       expiresAt,
     },
@@ -63,6 +60,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     playlist: temp,
-    spotifyUrl: playlist.external_urls.spotify,
+    spotifyUrl: result.external_urls.spotify,
   });
 }

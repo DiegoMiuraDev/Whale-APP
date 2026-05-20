@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { runIdentifyAudio } from "@/lib/agent-tools";
+import { formatCreatePlaylistFeedback, runIdentifyAudio } from "@/lib/agent-tools";
 import { runGeminiAgent } from "@/lib/gemini-agent";
 
 export async function POST(req: NextRequest) {
@@ -28,9 +28,12 @@ export async function POST(req: NextRequest) {
       extraContext,
     );
 
+    const allTools = [...toolResults, ...agentTools];
+    const playlistNote = formatCreatePlaylistFeedback(allTools);
+
     return NextResponse.json({
-      message,
-      toolResults: [...toolResults, ...agentTools],
+      message: playlistNote ? `${message}${playlistNote}` : message,
+      toolResults: allTools,
     });
   } catch (err) {
     console.error("[api/agent]", err);

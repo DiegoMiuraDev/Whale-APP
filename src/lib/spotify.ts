@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSpotifyCredentials } from "@/lib/spotify-auth";
 
 const SPOTIFY_API = "https://api.spotify.com/v1";
 
@@ -13,20 +14,24 @@ export type SpotifyTrack = {
   duration_ms: number;
 };
 
-async function getSpotifyAccessToken(userId: string): Promise<string | null> {
-  const account = await prisma.account.findFirst({
-    where: { userId, provider: "spotify" },
-  });
-  if (!account?.access_token) return null;
+export type SpotifyApiError = {
+  status: number;
+  body: string;
+  path: string;
+};
 
-  const expiresAt = account.expires_at ?? 0;
+async function getSpotifyAccessToken(userId: string): Promise<string | null> {
+  const creds = await getSpotifyCredentials(userId);
+  if (!creds) return null;
+
+  const expiresAt = creds.expiresAt ?? 0;
   const now = Math.floor(Date.now() / 1000);
 
   if (expiresAt > now + 60) {
-    return account.access_token;
+    return creds.accessToken;
   }
 
-  if (!account.refresh_token) return account.access_token;
+  if (!creds.refreshToken) return creds.accessToken;
 
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -38,11 +43,14 @@ async function getSpotifyAccessToken(userId: string): Promise<string | null> {
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: account.refresh_token,
+      refresh_token: creds.refreshToken,
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error("[spotify] refresh token failed", res.status, await res.text());
+    return creds.accessToken;
+  }
 
   const data = (await res.json()) as {
     access_token: string;
@@ -50,14 +58,16 @@ async function getSpotifyAccessToken(userId: string): Promise<string | null> {
     refresh_token?: string;
   };
 
-  await prisma.account.update({
-    where: { id: account.id },
-    data: {
-      access_token: data.access_token,
-      expires_at: now + data.expires_in,
-      ...(data.refresh_token ? { refresh_token: data.refresh_token } : {}),
-    },
-  });
+  if (creds.accountId) {
+    await prisma.account.update({
+      where: { id: creds.accountId },
+      data: {
+        access_token: data.access_token,
+        expires_at: now + data.expires_in,
+        ...(data.refresh_token ? { refresh_token: data.refresh_token } : {}),
+      },
+    });
+  }
 
   return data.access_token;
 }
@@ -66,9 +76,14 @@ async function spotifyFetch<T>(
   userId: string,
   path: string,
   options?: RequestInit,
-): Promise<T | null> {
+): Promise<{ data: T | null; error?: SpotifyApiError }> {
   const token = await getSpotifyAccessToken(userId);
-  if (!token) return null;
+  if (!token) {
+    return {
+      data: null,
+      error: { status: 401, body: "Sem token Spotify", path },
+    };
+  }
 
   const res = await fetch(`${SPOTIFY_API}${path}`, {
     ...options,
@@ -79,8 +94,24 @@ async function spotifyFetch<T>(
     },
   });
 
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`[spotify] ${path} → ${res.status}`, body.slice(0, 300));
+    return {
+      data: null,
+      error: { status: res.status, body, path },
+    };
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return { data: {} as T };
+  }
+
+  const text = await res.text();
+  if (!text) return { data: {} as T };
+
+  return { data: JSON.parse(text) as T };
 }
 
 export async function searchTracks(
@@ -88,7 +119,7 @@ export async function searchTracks(
   query: string,
   limit = 10,
 ): Promise<SpotifyTrack[]> {
-  const data = await spotifyFetch<{ tracks: { items: SpotifyTrack[] } }>(
+  const { data } = await spotifyFetch<{ tracks: { items: SpotifyTrack[] } }>(
     userId,
     `/search?${new URLSearchParams({
       q: query,
@@ -140,26 +171,53 @@ export async function createPlaylist(
   name: string,
   description: string,
   trackUris: string[],
-): Promise<{ id: string; external_urls: { spotify: string } } | null> {
-  const me = await spotifyFetch<{ id: string }>(userId, "/me");
-  if (!me) return null;
+): Promise<
+  | { id: string; external_urls: { spotify: string }; tracksAdded: number }
+  | { error: string }
+> {
+  if (trackUris.length === 0) {
+    return { error: "Nenhuma faixa encontrada para adicionar à playlist." };
+  }
 
-  const playlist = await spotifyFetch<{
+  const { data: playlist, error: createError } = await spotifyFetch<{
     id: string;
     external_urls: { spotify: string };
-  }>(userId, `/users/${me.id}/playlists`, {
+  }>(userId, "/me/playlists", {
     method: "POST",
-    body: JSON.stringify({ name, description, public: true }),
+    body: JSON.stringify({
+      name,
+      description,
+      public: false,
+    }),
   });
 
-  if (!playlist || trackUris.length === 0) return playlist;
+  if (!playlist?.id) {
+    const detail = createError
+      ? `Spotify ${createError.status}: ${createError.body.slice(0, 120)}`
+      : "Falha ao criar playlist";
+    return { error: detail };
+  }
 
-  await spotifyFetch(userId, `/playlists/${playlist.id}/tracks`, {
-    method: "POST",
-    body: JSON.stringify({ uris: trackUris.slice(0, 100) }),
-  });
+  const { error: addError } = await spotifyFetch(
+    userId,
+    `/playlists/${playlist.id}/tracks`,
+    {
+      method: "POST",
+      body: JSON.stringify({ uris: trackUris.slice(0, 100) }),
+    },
+  );
 
-  return playlist;
+  if (addError) {
+    return {
+      error: `Playlist criada, mas faixas não foram adicionadas (${addError.status}).`,
+    };
+  }
+
+  return {
+    id: playlist.id,
+    external_urls: playlist.external_urls,
+    tracksAdded: trackUris.length,
+  };
 }
 
 export async function deletePlaylist(
@@ -180,7 +238,7 @@ export async function deletePlaylist(
 }
 
 export async function getUserPlaylists(userId: string) {
-  return spotifyFetch<{
+  const { data } = await spotifyFetch<{
     items: {
       id: string;
       name: string;
@@ -190,4 +248,5 @@ export async function getUserPlaylists(userId: string) {
       tracks: { total: number };
     }[];
   }>(userId, "/me/playlists?limit=50");
+  return data;
 }

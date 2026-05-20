@@ -27,10 +27,6 @@ export const APP_URL = resolveAppUrl();
 export const AUTH_BASE_URL = process.env.AUTH_URL?.replace(/\/$/, "") ??
   `${APP_URL}/api/auth`;
 
-export const SPOTIFY_REDIRECT_URI = `${AUTH_BASE_URL}/callback/spotify`;
-
-export const IS_NGROK = APP_URL.startsWith("https://") && APP_URL.includes("ngrok");
-
 export const authConfig: NextAuthConfig = {
   providers: [
     Spotify({

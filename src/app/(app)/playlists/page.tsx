@@ -108,9 +108,8 @@ export default function PlaylistsPage() {
       </div>
 
       <p className="text-xs text-whale-muted">
-        Dica: em Descobrir, selecione faixas com o player; para persistir na
-        criação de playlist temporária manual, salve URIs via agente ou API.
-        O cron em /api/cron/expire-playlists remove playlists expiradas.
+        Em Descobrir, escolha faixas no player. Playlists temporárias expiram
+        automaticamente após o prazo definido.
       </p>
     </div>
   );

@@ -3,8 +3,6 @@ import { signIn } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Radio } from "lucide-react";
-import { SpotifyRedirectHint } from "@/components/auth/spotify-redirect-hint";
-import { APP_URL } from "@/lib/auth.config";
 
 export default async function LoginPage({
   searchParams,
@@ -28,13 +26,6 @@ export default async function LoginPage({
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <SpotifyRedirectHint />
-          <p className="text-center text-xs text-whale-muted">
-            Abra o app em:{" "}
-            <a href={APP_URL} className="text-whale-accent underline">
-              {APP_URL}
-            </a>
-          </p>
           <form
             action={async () => {
               "use server";
@@ -48,10 +39,10 @@ export default async function LoginPage({
           {params.error && (
             <p className="text-center text-sm text-red-400">
               {params.error === "Configuration"
-                ? "Erro de autenticação. Confira AUTH_URL e Redirect URI no Spotify (veja caixa acima), reinicie npm run dev."
+                ? "Não foi possível conectar agora. Tente de novo em instantes."
                 : params.error === "AccessDenied"
-                  ? "Acesso negado — você cancelou ou não tem permissão no app Spotify."
-                  : `Erro: ${params.error}. Limpe cookies do site e tente de novo.`}
+                  ? "Acesso negado — você cancelou ou não autorizou o Whale."
+                  : "Algo deu errado. Tente novamente."}
             </p>
           )}
           <Link

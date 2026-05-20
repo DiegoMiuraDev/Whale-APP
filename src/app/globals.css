@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --whale-bg: #121212;
+  --whale-surface: #181818;
+  --whale-elevated: #282828;
+  --whale-border: #282828;
+  --whale-muted: #b3b3b3;
+  --whale-accent: #1db954;
+  --whale-accent-hover: #1ed760;
+  --whale-sidebar: #000000;
+  --whale-player: #181818;
+  --background: var(--whale-bg);
+  --foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-whale-bg: var(--whale-bg);
+  --color-whale-surface: var(--whale-surface);
+  --color-whale-elevated: var(--whale-elevated);
+  --color-whale-border: var(--whale-border);
+  --color-whale-muted: var(--whale-muted);
+  --color-whale-accent: var(--whale-accent);
+  --color-whale-accent-hover: var(--whale-accent-hover);
+  --color-whale-sidebar: var(--whale-sidebar);
+  --color-whale-player: var(--whale-player);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
-  background: var(--background);
+  background: var(--whale-bg);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--whale-elevated) transparent;
 }

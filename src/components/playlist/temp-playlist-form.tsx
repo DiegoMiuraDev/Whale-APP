@@ -24,7 +24,7 @@ export function TempPlaylistForm({ selectedTracks, onCreated }: Props) {
 
   const create = async () => {
     if (selectedTracks.length === 0) {
-      setError("Adicione faixas pela busca em Descobrir");
+      setError("Marque ao menos uma faixa na busca acima");
       return;
     }
     setLoading(true);
@@ -40,7 +40,14 @@ export function TempPlaylistForm({ selectedTracks, onCreated }: Props) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro");
+      if (!res.ok) {
+        const err =
+          typeof data.error === "string"
+            ? data.error
+            : "Erro ao criar playlist";
+        throw new Error(err);
+      }
+      setName("Whale — evento");
       onCreated();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao criar");

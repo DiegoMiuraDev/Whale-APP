@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { ExternalLink, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TempPlaylistForm } from "@/components/playlist/temp-playlist-form";
+import { PlaylistTrackPicker } from "@/components/playlist/playlist-track-picker";
 import type { SpotifyTrack } from "@/lib/spotify";
 
 type TempPlaylist = {
@@ -14,6 +14,8 @@ type TempPlaylist = {
   spotifyPlaylistId: string;
   expiresAt: string;
 };
+
+const STORAGE_KEY = "whale:selectedTracks";
 
 export default function PlaylistsPage() {
   const [tempPlaylists, setTempPlaylists] = useState<TempPlaylist[]>([]);
@@ -27,7 +29,7 @@ export default function PlaylistsPage() {
 
   useEffect(() => {
     load();
-    const stored = sessionStorage.getItem("whale:selectedTracks");
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored) as SpotifyTrack[];
@@ -36,6 +38,20 @@ export default function PlaylistsPage() {
       /* ignore */
     }
   }, []);
+
+  const handleSelectionChange = (tracks: SpotifyTrack[]) => {
+    setSelectedTracks(tracks);
+  };
+
+  const handleCreated = () => {
+    setSelectedTracks([]);
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    load();
+  };
 
   const formatExpiry = useCallback((iso: string, now: number) => {
     const d = new Date(iso);
@@ -53,12 +69,21 @@ export default function PlaylistsPage() {
       <div>
         <h1 className="text-3xl font-bold">Playlists</h1>
         <p className="text-whale-muted">
-          Temporárias criadas pelo Whale — expiram automaticamente
+          Busque faixas, marque com checkbox e crie uma playlist temporária
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TempPlaylistForm selectedTracks={selectedTracks} onCreated={load} />
+        <div className="space-y-6">
+          <PlaylistTrackPicker
+            selectedTracks={selectedTracks}
+            onSelectionChange={handleSelectionChange}
+          />
+          <TempPlaylistForm
+            selectedTracks={selectedTracks}
+            onCreated={handleCreated}
+          />
+        </div>
 
         <Card>
           <CardHeader>
@@ -70,15 +95,8 @@ export default function PlaylistsPage() {
           <CardContent className="space-y-3">
             {tempPlaylists.length === 0 ? (
               <p className="text-sm text-whale-muted">
-                Nenhuma playlist temporária. Use{" "}
-                <Link href="/discover" className="text-whale-accent underline">
-                  Descobrir
-                </Link>{" "}
-                para buscar faixas ou peça ao{" "}
-                <Link href="/agent" className="text-whale-accent underline">
-                  Agente
-                </Link>
-                .
+                Nenhuma playlist temporária ainda. Selecione faixas ao lado e
+                clique em Criar no Spotify.
               </p>
             ) : (
               tempPlaylists.map((pl) => (
@@ -106,11 +124,6 @@ export default function PlaylistsPage() {
           </CardContent>
         </Card>
       </div>
-
-      <p className="text-xs text-whale-muted">
-        Em Descobrir, escolha faixas no player. Playlists temporárias expiram
-        automaticamente após o prazo definido.
-      </p>
     </div>
   );
 }

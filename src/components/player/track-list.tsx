@@ -66,17 +66,6 @@ export function TrackList({
                 previewUrl: track.preview_url,
               };
               setNowPlaying(playing);
-              try {
-                const stored = sessionStorage.getItem("whale:selectedTracks");
-                const list = stored ? JSON.parse(stored) : [];
-                if (!list.find((t: { id: string }) => t.id === track.id)) {
-                  list.push(track);
-                  sessionStorage.setItem(
-                    "whale:selectedTracks",
-                    JSON.stringify(list.slice(-20)),
-                  );
-                }
-              } catch {}
             }}
           >
             <Play className="h-4 w-4" />

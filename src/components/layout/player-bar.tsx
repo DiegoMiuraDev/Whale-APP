@@ -1,12 +1,12 @@
 "use client";
 
-import { ExternalLink, Pause, Play } from "lucide-react";
+import { ExternalLink, Pause, Play, X } from "lucide-react";
 import { usePlayer } from "@/context/player-context";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 
 export function PlayerBar() {
-  const { nowPlaying } = usePlayer();
+  const { nowPlaying, setNowPlaying } = usePlayer();
   const [playing, setPlaying] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -22,6 +22,14 @@ export function PlayerBar() {
       setPlayError(null);
     });
   }, [nowPlaying?.id]);
+
+  const closePlayer = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlaying(false);
+    setPlayError(null);
+    setNowPlaying(null);
+  };
 
   const togglePreview = async () => {
     if (!nowPlaying?.previewUrl) return;
@@ -53,14 +61,7 @@ export function PlayerBar() {
   };
 
   if (!nowPlaying) {
-    return (
-      <footer className="flex h-[90px] flex-col items-center justify-center border-t border-whale-border bg-whale-player px-6 text-center text-sm text-whale-muted">
-        <p>Selecione uma música em Descobrir e clique em ▶</p>
-        <p className="mt-1 text-xs">
-          Preview de ~30s no Whale · música completa no app Spotify (Premium)
-        </p>
-      </footer>
-    );
+    return null;
   }
 
   return (
@@ -120,7 +121,7 @@ export function PlayerBar() {
           )}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2">
           {nowPlaying.spotifyUrl && (
             <Button variant="secondary" size="sm" asChild>
               <a
@@ -133,6 +134,15 @@ export function PlayerBar() {
               </a>
             </Button>
           )}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={closePlayer}
+            title="Fechar player"
+            aria-label="Fechar player"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 

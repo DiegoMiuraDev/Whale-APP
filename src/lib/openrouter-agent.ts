@@ -6,20 +6,23 @@ import type { ChatMessage } from "@/lib/gemini-agent";
 
 const OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions";
 
-const DEFAULT_MODELS = [
+const TOOL_CAPABLE_MODELS = [
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-20b:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
 ];
 
 function isRetryableModelError(msg: string): boolean {
+  const lower = msg.toLowerCase();
   return (
     msg.includes("404") ||
-    msg.includes("No endpoints found") ||
+    lower.includes("no endpoints found") ||
+    lower.includes("tool use") ||
+    lower.includes("does not support tool") ||
     msg.includes("429") ||
-    msg.includes("rate") ||
-    msg.includes("quota")
+    lower.includes("rate") ||
+    lower.includes("quota") ||
+    lower.includes("provider returned error")
   );
 }
 
@@ -48,10 +51,15 @@ type ChatCompletionResponse = {
 
 function getModelCandidates(): string[] {
   const preferred = process.env.OPENROUTER_MODEL?.trim();
-  const list = preferred
-    ? [preferred, ...DEFAULT_MODELS.filter((m) => m !== preferred)]
-    : [...DEFAULT_MODELS];
-  return [...new Set(list)];
+  const single =
+    process.env.OPENROUTER_SINGLE_MODEL === "1" ||
+    process.env.OPENROUTER_SINGLE_MODEL === "true";
+
+  if (preferred && single) return [preferred];
+  if (preferred) {
+    return [preferred, ...TOOL_CAPABLE_MODELS.filter((m) => m !== preferred)];
+  }
+  return [...TOOL_CAPABLE_MODELS];
 }
 
 function buildOpenAIMessages(
@@ -138,6 +146,9 @@ export async function runOpenRouterAgent(
       let currentMessages = [...chatMessages];
 
       for (let round = 0; round < 6; round++) {
+        if (round > 0 || model !== models[0]) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
         const data = await callOpenRouter(model, currentMessages);
         const choice = data.choices?.[0];
         const assistantMsg = choice?.message;
@@ -191,14 +202,15 @@ export async function runOpenRouterAgent(
     }
   }
 
-  const hint = process.env.OPENROUTER_MODEL?.includes("qwen-2.5")
-    ? " Remova ou atualize OPENROUTER_MODEL no .env (modelo antigo)."
-    : "";
+  const preferred = process.env.OPENROUTER_MODEL?.trim();
 
   return {
     message:
-      `Não consegui contactar o OpenRouter.${hint} Tente OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free\n` +
-      errors.slice(-2).join("\n"),
+      `Não consegui contactar o OpenRouter.\n` +
+      (preferred
+        ? `Modelo configurado: ${preferred}\n`
+        : `Sugestão: OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free\n`) +
+      errors.slice(-3).join("\n"),
     toolResults,
   };
 }

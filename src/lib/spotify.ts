@@ -239,6 +239,31 @@ export async function searchTracksPublic(
   return parseSearchItems(data);
 }
 
+async function addTracksToPlaylist(
+  userId: string,
+  playlistId: string,
+  trackUris: string[],
+): Promise<SpotifyApiError | null> {
+  const uris = trackUris
+    .filter((u) => u.startsWith("spotify:track:"))
+    .slice(0, 100);
+
+  if (uris.length === 0) {
+    return { status: 400, body: "URIs inválidas", path: "/items" };
+  }
+
+  const { error } = await spotifyFetch<{ snapshot_id: string }>(
+    userId,
+    `/playlists/${playlistId}/items`,
+    {
+      method: "POST",
+      body: JSON.stringify({ uris }),
+    },
+  );
+
+  return error ?? null;
+}
+
 export async function createPlaylist(
   userId: string,
   name: string,
@@ -271,18 +296,20 @@ export async function createPlaylist(
     return { error: detail };
   }
 
-  const { error: addError } = await spotifyFetch(
+  const addError = await addTracksToPlaylist(
     userId,
-    `/playlists/${playlist.id}/tracks`,
-    {
-      method: "POST",
-      body: JSON.stringify({ uris: trackUris.slice(0, 100) }),
-    },
+    playlist.id,
+    trackUris,
   );
 
   if (addError) {
+    await deletePlaylist(userId, playlist.id);
+    const hint =
+      addError.status === 403
+        ? " Saia e entre de novo com Spotify para renovar permissões."
+        : "";
     return {
-      error: `Playlist criada, mas faixas não foram adicionadas (${addError.status}).`,
+      error: `Não foi possível adicionar faixas (${addError.status}).${hint}`,
     };
   }
 

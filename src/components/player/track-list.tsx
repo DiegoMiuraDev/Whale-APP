@@ -50,7 +50,12 @@ export function TrackList({
           <Button
             size="icon"
             variant="ghost"
-            className="opacity-0 group-hover:opacity-100"
+            className="opacity-70 group-hover:opacity-100"
+            title={
+              track.preview_url
+                ? "Tocar preview (~30s)"
+                : "Abrir player Spotify embaixo"
+            }
             onClick={() => {
               const playing = {
                 id: track.id,

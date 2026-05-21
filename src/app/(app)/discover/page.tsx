@@ -53,7 +53,8 @@ export default function DiscoverPage() {
       <div>
         <h1 className="text-3xl font-bold">Descobrir</h1>
         <p className="text-whale-muted">
-          Busque no catálogo Spotify conectado à sua conta
+          Busque no catálogo Spotify · clique em ▶ para preview ou player
+          embutido
         </p>
       </div>
 

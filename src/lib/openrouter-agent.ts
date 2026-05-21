@@ -7,7 +7,7 @@ import type { ChatMessage } from "@/lib/gemini-agent";
 const OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions";
 
 const TOOL_CAPABLE_MODELS = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-20b:free",
 ];
@@ -209,7 +209,7 @@ export async function runOpenRouterAgent(
       `Não consegui contactar o OpenRouter.\n` +
       (preferred
         ? `Modelo configurado: ${preferred}\n`
-        : `Sugestão: OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free\n`) +
+        : `Sugestão: OPENROUTER_MODEL=openai/gpt-oss-120b:free\n`) +
       errors.slice(-3).join("\n"),
     toolResults,
   };

@@ -74,7 +74,7 @@ Abra o app pela URL **https** do ngrok, não pelo localhost.
 | Variável | Serviço |
 |----------|---------|
 | `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/keys) (recomendado) |
-| `OPENROUTER_MODEL` | Ex.: `meta-llama/llama-3.3-70b-instruct:free` |
+| `OPENROUTER_MODEL` | Ex.: `openai/gpt-oss-120b:free` |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (fallback) |
 | `GEMINI_MODEL` | Padrão: `gemini-1.5-flash` |
 | `AUDD_API_TOKEN` | [audd.io](https://audd.io/) |

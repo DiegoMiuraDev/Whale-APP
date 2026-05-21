@@ -6,7 +6,7 @@ Web app que se conecta à sua conta **Spotify** para descobrir músicas (áudio 
 
 - Identificação de música por microfone (AudD ou mock local)
 - Busca por trecho de letra no catálogo Spotify
-- Agente **Google Gemini** com tools (busca, letra, criar playlist)
+- Agente IA (**OpenRouter** ou Gemini) com tools (busca, letra, criar playlist)
 - Playlists temporárias com expiração automática (cron)
 
 ## Stack
@@ -14,7 +14,7 @@ Web app que se conecta à sua conta **Spotify** para descobrir músicas (áudio 
 - Next.js 16, TypeScript, Tailwind CSS v4
 - Auth.js v5 + Spotify OAuth
 - Prisma + SQLite (dev) — troque por Postgres em produção
-- Google Gemini, AudD (opcionais; mocks sem chaves)
+- OpenRouter / Gemini, AudD (opcionais; mocks sem chaves)
 
 ## Setup
 
@@ -73,8 +73,10 @@ Abra o app pela URL **https** do ngrok, não pelo localhost.
 
 | Variável | Serviço |
 |----------|---------|
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | Padrão: `gemini-2.0-flash` |
+| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/keys) (recomendado) |
+| `OPENROUTER_MODEL` | Ex.: `meta-llama/llama-3.3-70b-instruct:free` |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (fallback) |
+| `GEMINI_MODEL` | Padrão: `gemini-1.5-flash` |
 | `AUDD_API_TOKEN` | [audd.io](https://audd.io/) |
 | `CRON_SECRET` | Proteção do endpoint de expiração |
 

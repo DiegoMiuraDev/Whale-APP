@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { formatCreatePlaylistFeedback, runIdentifyAudio } from "@/lib/agent-tools";
-import { runGeminiAgent } from "@/lib/gemini-agent";
+import { runAgent } from "@/lib/agent";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       extraContext = `Áudio identificado: ${JSON.stringify(identifyResult.data)}`;
     }
 
-    const { message, toolResults: agentTools } = await runGeminiAgent(
+    const { message, toolResults: agentTools } = await runAgent(
       body.messages,
       userId,
       extraContext,

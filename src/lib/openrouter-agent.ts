@@ -8,9 +8,20 @@ const OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions";
 
 const DEFAULT_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-12b-it:free",
-  "qwen/qwen-2.5-7b-instruct:free",
+  "openai/gpt-oss-20b:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "google/gemma-4-26b-a4b-it:free",
 ];
+
+function isRetryableModelError(msg: string): boolean {
+  return (
+    msg.includes("404") ||
+    msg.includes("No endpoints found") ||
+    msg.includes("429") ||
+    msg.includes("rate") ||
+    msg.includes("quota")
+  );
+}
 
 type OpenAIMessage =
   | { role: "system"; content: string }
@@ -120,7 +131,7 @@ export async function runOpenRouterAgent(
   const chatMessages = buildOpenAIMessages(messages, extraContext);
   const toolResults: unknown[] = [];
   const models = getModelCandidates();
-  let lastError = "";
+  const errors: string[] = [];
 
   for (const model of models) {
     try {
@@ -174,13 +185,20 @@ export async function runOpenRouterAgent(
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      lastError = msg;
+      errors.push(`${model}: ${msg.slice(0, 80)}`);
       console.warn(`[openrouter-agent] ${model} falhou:`, msg.slice(0, 160));
+      if (!isRetryableModelError(msg)) break;
     }
   }
 
+  const hint = process.env.OPENROUTER_MODEL?.includes("qwen-2.5")
+    ? " Remova ou atualize OPENROUTER_MODEL no .env (modelo antigo)."
+    : "";
+
   return {
-    message: `Não consegui contactar o OpenRouter: ${lastError.slice(0, 200)}`,
+    message:
+      `Não consegui contactar o OpenRouter.${hint} Tente OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free\n` +
+      errors.slice(-2).join("\n"),
     toolResults,
   };
 }
